@@ -132,12 +132,26 @@
        stay highlighted -- otherwise the last visited section keeps its
        underline after scrolling back to the top. */
     var firstSection = sections[0];
+    var clickedAt = 0; /* ms timestamp of the last nav click */
+
     var clearSpy = function () {
+      /* A click starts the smooth scroll from above the section; highlight
+         the clicked item immediately and keep it through the flight. */
+      var sinceClick = Date.now() - clickedAt;
       var y = window.pageYOffset || d.documentElement.scrollTop;
+      if (sinceClick < 1500) return;
       if (y + d.documentElement.clientHeight * 0.45 < firstSection.offsetTop) {
         setActive(null);
       }
     };
+
+    navLinks.forEach(function (link) {
+      link.addEventListener("click", function () {
+        setActive(link.getAttribute("href").slice(1));
+        clickedAt = Date.now();
+      });
+    });
+
     window.addEventListener("scroll", clearSpy, { passive: true });
     clearSpy();
   }
