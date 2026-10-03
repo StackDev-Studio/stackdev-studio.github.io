@@ -109,16 +109,37 @@
     .filter(Boolean);
 
   if (sections.length && "IntersectionObserver" in window) {
-    var spy = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        navLinks.forEach(function (link) {
-          link.classList.toggle("is-active", link.getAttribute("href") === "#" + entry.target.id);
-        });
+    var setActive = function (id) {
+      navLinks.forEach(function (link) {
+        link.classList.toggle("is-active", link.getAttribute("href") === "#" + id);
       });
+    };
+
+    var spy = new IntersectionObserver(function (entries) {
+      var best = null;
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) best = entry.target.id;
+      });
+      /* Rewrite state only on a real change: the observer fires in batches
+         and clearing on one non-intersecting entry would flicker the
+         underline where two sections border each other. */
+      if (best) setActive(best);
     }, { rootMargin: "-45% 0px -50% 0px" });
 
     sections.forEach(function (section) { spy.observe(section); });
+
+    /* Clearing on scroll: while the hero fills the band no nav item should
+       stay highlighted -- otherwise the last visited section keeps its
+       underline after scrolling back to the top. */
+    var firstSection = sections[0];
+    var clearSpy = function () {
+      var y = window.pageYOffset || d.documentElement.scrollTop;
+      if (y + d.documentElement.clientHeight * 0.45 < firstSection.offsetTop) {
+        setActive(null);
+      }
+    };
+    window.addEventListener("scroll", clearSpy, { passive: true });
+    clearSpy();
   }
 
   /* ------------------------------------------------------------- year */
@@ -157,9 +178,60 @@
     });
   }
 
+  /* Contact can be a phone (+7..., digits, spaces, dashes, brackets) or a
+     Telegram handle (@name or t.me/name). Anything else is rejected before
+     the brief is composed. */
+  var PHONE_RE = /^\+?[\d\s\-()]{10,18}$/;
+  var TG_RE = /^(@[a-zA-Z0-9_]{4,32}|https?:\/\/t\.me\/[a-zA-Z0-9_]{4,32}|t\.me\/[a-zA-Z0-9_]{4,32})$/;
+
+  function contactError(contact) {
+    if (PHONE_RE.test(contact) || TG_RE.test(contact)) return "";
+    if (/^\+?\d+$/.test(contact.replace(/[\s\-()]/g, ""))) {
+      return "Телефон выглядит неполным — нужен формат +7 900 000-00-00.";
+    }
+    return "Укажите телефон +7... или Telegram @username.";
+  }
+
+  function setFieldError(input, message) {
+    var field = input.closest(".field");
+    if (!field) return;
+    var note = field.querySelector(".field-error");
+    if (!note) {
+      note = d.createElement("span");
+      note.className = "field-error";
+      field.appendChild(note);
+    }
+    note.textContent = message;
+    input.setAttribute("aria-invalid", message ? "true" : "false");
+  }
+
+  function clearErrors() {
+    Array.prototype.forEach.call(form.querySelectorAll(".field-error"), function (n) {
+      n.textContent = "";
+    });
+    Array.prototype.forEach.call(form.querySelectorAll("[aria-invalid]"), function (i) {
+      i.removeAttribute("aria-invalid");
+    });
+  }
+
   if (form) {
+    /* Validate on blur so mistakes surface early, not only on submit. */
+    var contactInput = form.elements.contact;
+    if (contactInput) {
+      contactInput.addEventListener("blur", function () {
+        var v = contactInput.value.trim();
+        if (v) setFieldError(contactInput, contactError(v));
+      });
+      contactInput.addEventListener("input", function () {
+        if (contactInput.getAttribute("aria-invalid") === "true") {
+          setFieldError(contactInput, contactError(contactInput.value.trim()));
+        }
+      });
+    }
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+      clearErrors();
 
       var data = new FormData(form);
       var name = String(data.get("name") || "").trim();
@@ -167,13 +239,31 @@
       var service = String(data.get("service") || "").trim();
       var message = String(data.get("message") || "").trim();
 
-      if (!name || !contact) {
+      var nameInput = form.elements.name;
+      var firstBad = null;
+
+      if (name.length < 2) {
+        setFieldError(nameInput, "Как к вам обращаться? Минимум 2 символа.");
+        firstBad = firstBad || nameInput;
+      }
+
+      if (!contact) {
+        setFieldError(contactInput, "Оставьте телефон или Telegram — иначе не ответить.");
+        firstBad = firstBad || contactInput;
+      } else {
+        var cerr = contactError(contact);
+        if (cerr) {
+          setFieldError(contactInput, cerr);
+          firstBad = firstBad || contactInput;
+        }
+      }
+
+      if (firstBad) {
         if (hint) {
-          hint.textContent = "Заполните имя и способ связи — без них заявку не отправить.";
+          hint.textContent = "Проверьте выделенные поля — заявка не отправлена.";
           hint.style.color = "#f87171";
         }
-        var firstEmpty = form.querySelector(":invalid");
-        if (firstEmpty) firstEmpty.focus();
+        firstBad.focus();
         return;
       }
 

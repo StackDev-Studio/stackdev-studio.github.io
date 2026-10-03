@@ -1,7 +1,6 @@
 # stackdev-studio.github.io
 
-Лендинг StackDev Studio (stack-dev.ru). Статика: HTML + CSS + ванильный JS,
-сборки нет, деплой — GitHub Pages.
+Лендинг StackDev Studio (stack-dev.ru). Статика: HTML + CSS + ванильный JS.
 
 ## Структура
 
@@ -14,7 +13,7 @@
 
 ## Бренд-иконки
 
-Единственный источник правды — `icon.png` (512×512). Всё остальное выводится из него:
+Источник иконок — `icon.png` (512×512). Всё остальное выводится из него:
 
 ```
 python3 tools/make_icons.py   # favicon-16/32/96, apple-touch-icon, icon-192/512, assets/img/logo.png
@@ -22,4 +21,4 @@ python3 tools/fetch_fonts.py  # обновить шрифты + assets/css/fonts
 python3 tools/make_og.py      # og-image.png / og-image.jpg
 ```
 
-Требования: Python 3 + Pillow. SVG-версии логотипа больше не используются.
+Требования: Python 3 + Pillow.

@@ -31,6 +31,18 @@
   --magenta: #c65cff;
   --accent: var(--violet);
   --grad: linear-gradient(100deg, var(--cyan) 0%, var(--violet) 48%, var(--magenta) 100%);
+  /* Fill for pill shapes (buttons, chips). Strictly horizontal (90deg): the
+     vertical rim of a fully rounded capsule then stays one colour from top
+     to bottom -- an angled fill changes hue along the rim and reads as a
+     band against the dark page. The saturated endpoints start 12% inside the
+     caps: violet at the very rim eases into cyan/magenta over a wide zone,
+     which removes the colour bands without making the button a rainbow. */
+  --grad-fill: linear-gradient(90deg,
+      var(--violet) 0%,
+      var(--cyan) 12%,
+      var(--violet) 48%,
+      var(--magenta) 88%,
+      var(--violet) 100%);
   --grad-soft: linear-gradient(100deg, rgba(77, 216, 230, .16) 0%, rgba(124, 107, 255, .18) 50%, rgba(198, 92, 255, .16) 100%);
 
   /* Shape */
@@ -162,13 +174,15 @@ body {
 .btn:active { transform: translateY(0); }
 
 .btn-primary {
-  background: var(--grad);
-  background-size: 160% 100%;
+  background: var(--grad-fill);
   color: #fff;
   box-shadow: 0 10px 30px -12px rgba(124, 107, 255, .8);
 }
+/* Hover brightens in place. The previous background-position shift exposed
+   the gradient ends at the pill caps, which rendered as colour bands along
+   the left/right edges -- brightness keeps the fill identical in-place. */
 .btn-primary:hover {
-  background-position: 100% 0;
+  filter: brightness(1.08);
   box-shadow: 0 16px 40px -14px rgba(160, 100, 255, .9);
 }
 
@@ -329,12 +343,17 @@ ul, ol { list-style: none; padding: 0; }
 }
 .brand-text span { color: var(--muted); font-weight: 500; }
 
+/* The actions cluster carries the auto margin, so the burger / phone / CTA
+   stay pinned to the right edge at every width regardless of where the nav
+   sits in the markup. Putting the auto margin on the nav instead made the
+   header contents drift toward the logo at tablet widths. */
 .nav {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-right: auto;
 }
+
+.header-actions { margin-left: auto; }
 
 .nav a {
   position: relative;
@@ -390,16 +409,18 @@ ul, ol { list-style: none; padding: 0; }
   place-items: center;
   gap: 5px;
 }
+/* Whole-pixel height: a 1.5px line is antialiased differently at odd device
+   pixel ratios, which made the top bar look thinner than the bottom one. */
 .burger span {
   display: block;
   width: 17px;
-  height: 1.5px;
+  height: 2px;
   border-radius: 2px;
   background: var(--text);
   transition: transform var(--t), opacity var(--t);
 }
-.burger[aria-expanded="true"] span:first-child { transform: translateY(3.25px) rotate(45deg); }
-.burger[aria-expanded="true"] span:last-child { transform: translateY(-3.25px) rotate(-45deg); }
+.burger[aria-expanded="true"] span:first-child { transform: translateY(3.5px) rotate(45deg); }
+.burger[aria-expanded="true"] span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
 
 /* ============================================================ HERO === */
 .hero {
@@ -474,11 +495,15 @@ ul, ol { list-style: none; padding: 0; }
   overflow: hidden;
 }
 
+/* The glow lives fully inside the parent (no negative insets): oversized
+   absolutely-positioned children clipped by overflow:hidden force huge
+   compositor layers that some GPUs rasterise partially -- the card background
+   then renders only in its top strip. The radial gradient itself fades the
+   glow out before the edges, so the visual is identical. */
 .mock-glow {
   position: absolute;
-  inset: -60% -20% auto;
-  height: 320px;
-  background: radial-gradient(ellipse at 50% 100%, rgba(124, 107, 255, .3), transparent 70%);
+  inset: 0;
+  background: radial-gradient(ellipse 90% 200px at 50% 0%, rgba(124, 107, 255, .3), transparent 70%);
   pointer-events: none;
 }
 
@@ -954,9 +979,8 @@ ul, ol { list-style: none; padding: 0; }
 
 .cta-glow {
   position: absolute;
-  inset: -50% 40% auto -20%;
-  height: 420px;
-  background: radial-gradient(ellipse at 30% 100%, rgba(124, 107, 255, .32), transparent 70%);
+  inset: 0;
+  background: radial-gradient(ellipse 70% 380px at 12% 0%, rgba(124, 107, 255, .32), transparent 70%);
   pointer-events: none;
 }
 
@@ -1073,12 +1097,24 @@ ul, ol { list-style: none; padding: 0; }
 .chip:hover span { border-color: rgba(124, 107, 255, .5); }
 .chip input:checked + span {
   border-color: transparent;
-  background: var(--grad);
+  background: var(--grad-fill);
   color: #fff;
 }
 .chip input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
 .form-hint { font-size: 12.5px; color: var(--muted-2); line-height: 1.55; }
+
+/* Inline field validation notes, populated by site.js */
+.field-error {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #f87171;
+}
+.field-error:empty { display: none; }
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border-color: rgba(248, 113, 113, .6);
+}
 
 /* ---- Footer ---- */
 .site-footer {
@@ -1165,9 +1201,15 @@ ul, ol { list-style: none; padding: 0; }
   transform: translateY(22px);
   transition: opacity .7s var(--ease-out), transform .7s var(--ease-out);
   transition-delay: calc(var(--d, 0) * 90ms);
-  will-change: opacity, transform;
 }
 .js .reveal.is-in { opacity: 1; transform: none; }
+
+/* will-change is applied only while the element animates in and dropped
+   afterwards: a permanently promoted layer gets its gradient backgrounds
+   clipped by the compositor mid-scroll on some GPUs (black bands across
+   cards). */
+.js .reveal:not(.is-in) { will-change: opacity, transform; }
+.js .reveal.is-in { will-change: auto; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 3px rgba(74, 222, 128, .18); }
@@ -1240,15 +1282,23 @@ ul, ol { list-style: none; padding: 0; }
   }
   .nav a.is-active::after { display: none; }
 
-  /* Primary action inside the drawer: the desktop header button is hidden
-     at this breakpoint, so the drawer carries its own. */
-  .nav-cta {
-    display: inline-flex;
-    margin-top: 18px;
-    padding: 14px 24px;
-    border-radius: 100px;
-    font-size: 16px;
+  /* Primary action lives at the end of the drawer: the desktop header button
+     is hidden at this breakpoint, so the drawer carries its own. Outside the
+     drawer (desktop) .nav-cta is display:none, so it never duplicates the
+     header button. */
+  .nav .nav-cta { display: none; }
+
+  .nav.is-open .nav-cta {
+    display: block;
+    margin-top: 16px;
+    padding: 14px 12px;
+    border: 0;
+    border-radius: var(--r-sm);
     text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--grad-fill);
   }
 
   .site-header.is-stuck { background: rgba(8, 9, 15, .9); }
@@ -1262,7 +1312,6 @@ ul, ol { list-style: none; padding: 0; }
   .brand-mark { width: 32px; height: 32px; }
 
   .header-actions { margin-left: auto; }
-  .header-actions .btn { display: none; }
 
   .hero-actions .btn { flex: 1 1 100%; }
 
