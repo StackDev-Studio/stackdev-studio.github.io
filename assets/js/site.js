@@ -103,57 +103,119 @@
   }
 
   /* ------------------------------------------------------- scroll-spy */
-  var navLinks = Array.prototype.slice.call(d.querySelectorAll(".nav a[href^='#']"));
-  var sections = navLinks
-    .map(function (link) { return d.getElementById(link.getAttribute("href").slice(1)); })
-    .filter(Boolean);
+  /* Deterministic scroll-spy. On every animation frame we answer one
+     question: "which section currently sits under the sticky header?" and
+     highlight the last one whose top has already crossed that line.
 
-  if (sections.length && "IntersectionObserver" in window) {
+     Why not IntersectionObserver: the observer fires asynchronously and in
+     batches, so the underline trailing the viewport felt laggy, and a
+     narrow rootMargin band made it snap late. Reading layout geometry each
+     frame is immediate, cheap and never picks the wrong section when two of
+     them touch. */
+  var navLinks = Array.prototype.slice.call(d.querySelectorAll(".nav a[href^='#']"));
+  var spySections = [];
+
+  navLinks.forEach(function (link) {
+    var target = d.getElementById(link.getAttribute("href").slice(1));
+    if (target && spySections.indexOf(target) === -1) spySections.push(target);
+  });
+
+  if (navLinks.length && spySections.length) {
+    var activeHash = "";
+    /* While a smooth-scroll from a nav click is in flight the spy is muted,
+       otherwise it would fight the animation frame by frame. Rather than
+       guessing the animation's duration we keep the clicked item pinned until
+       scrolling actually stops -- a fixed timeout either gives up too early
+       on a long jump or freezes the highlight on a short one. */
+    var clickLock = false;
+    var settleTimer = 0;
+    var unlockWhenIdle = function () {
+      if (!clickLock) return;
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(function () {
+        clickLock = false;
+        computeActive();
+      }, 150);
+    };
+
     var setActive = function (id) {
+      var hash = id ? "#" + id : "";
+      if (hash === activeHash) return;
+      activeHash = hash;
       navLinks.forEach(function (link) {
-        link.classList.toggle("is-active", link.getAttribute("href") === "#" + id);
+        var on = link.getAttribute("href") === hash;
+        link.classList.toggle("is-active", on);
+        /* Screen readers get the same signal the underline gives the eye. */
+        if (on) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
       });
     };
 
-    var spy = new IntersectionObserver(function (entries) {
-      var best = null;
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) best = entry.target.id;
-      });
-      /* Rewrite state only on a real change: the observer fires in batches
-         and clearing on one non-intersecting entry would flicker the
-         underline where two sections border each other. */
-      if (best) setActive(best);
-    }, { rootMargin: "-45% 0px -50% 0px" });
+    var activationLine = function () {
+      var h = header ? header.offsetHeight : 0;
+      /* A touch below the sticky header: the highlight flips exactly as a
+         section slides under the bar instead of mid-heading. */
+      return h + Math.min(window.innerHeight * 0.08, 72);
+    };
 
-    sections.forEach(function (section) { spy.observe(section); });
-
-    /* Clearing on scroll: while the hero fills the band no nav item should
-       stay highlighted -- otherwise the last visited section keeps its
-       underline after scrolling back to the top. */
-    var firstSection = sections[0];
-    var clickedAt = 0; /* ms timestamp of the last nav click */
-
-    var clearSpy = function () {
-      /* A click starts the smooth scroll from above the section; highlight
-         the clicked item immediately and keep it through the flight. */
-      var sinceClick = Date.now() - clickedAt;
+    var computeActive = function () {
+      var line = activationLine();
       var y = window.pageYOffset || d.documentElement.scrollTop;
-      if (sinceClick < 1500) return;
-      if (y + d.documentElement.clientHeight * 0.45 < firstSection.offsetTop) {
-        setActive(null);
+      var max = d.documentElement.scrollHeight - window.innerHeight;
+
+      /* Pinned to the very bottom: highlight the final section so the lead
+         section never loses its underline on short viewports. */
+      if (max > 0 && y >= max - 2) {
+        setActive(spySections[spySections.length - 1].id);
+        return;
       }
+
+      var current = "";
+      for (var i = 0; i < spySections.length; i++) {
+        if (spySections[i].getBoundingClientRect().top <= line) {
+          current = spySections[i].id;
+        }
+      }
+      setActive(current);
+    };
+
+    var spyTicking = false;
+    var requestSpy = function () {
+      /* A click-driven flight keeps its own target highlighted; only watch
+         for the moment the page goes idle so the spy can take over again. */
+      if (clickLock) { unlockWhenIdle(); return; }
+      if (spyTicking) return;
+      spyTicking = true;
+      window.requestAnimationFrame(function () {
+        spyTicking = false;
+        if (clickLock) return;
+        computeActive();
+      });
     };
 
     navLinks.forEach(function (link) {
       link.addEventListener("click", function () {
-        setActive(link.getAttribute("href").slice(1));
-        clickedAt = Date.now();
+        var id = link.getAttribute("href").slice(1);
+        /* Highlight immediately and hold it through the flight. */
+        setActive(id);
+        if (reduce) return;
+        clickLock = true;
+        unlockWhenIdle();
       });
     });
 
-    window.addEventListener("scroll", clearSpy, { passive: true });
-    clearSpy();
+    window.addEventListener("scroll", requestSpy, { passive: true });
+    window.addEventListener("resize", requestSpy, { passive: true });
+    window.addEventListener("hashchange", requestSpy);
+
+    /* Web fonts and the async GitHub grid shift section offsets after first
+       paint, so re-sync once they settle. */
+    if (d.fonts && d.fonts.ready && typeof d.fonts.ready.then === "function") {
+      d.fonts.ready.then(computeActive);
+    }
+    window.addEventListener("load", computeActive);
+
+    computeActive();
   }
 
   /* ------------------------------------------------------------- year */
@@ -333,6 +395,51 @@
     return !repo.fork && repo.name !== SITE_REPO;
   }
 
+  /* Card markup is built with the DOM API instead of innerHTML on purpose:
+     repo names and descriptions come from the GitHub API, so a stray "<" or
+     "&" must render as text -- never as markup or a layout-breaking entity.
+     textContent handles that for free and also removes any XSS vector. */
+  function repoCard(repo) {
+    var updated = repo.updated_at
+      ? new Date(repo.updated_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+
+    var card = d.createElement("article");
+    card.className = "repo reveal is-in";
+
+    var top = d.createElement("div");
+    top.className = "repo-top";
+
+    var name = d.createElement("a");
+    name.className = "repo-name";
+    name.href = String(repo.html_url || "");
+    name.target = "_blank";
+    name.rel = "noopener";
+    name.textContent = repo.name || "";
+    top.appendChild(name);
+
+    var desc = d.createElement("p");
+    desc.className = "repo-desc";
+    desc.textContent = repo.description || "Проект без описания.";
+
+    var meta = d.createElement("div");
+    meta.className = "repo-meta";
+    [
+      "★ " + (repo.stargazers_count == null ? 0 : repo.stargazers_count),
+      repo.language || "—",
+      "обновлён " + updated
+    ].forEach(function (text) {
+      var span = d.createElement("span");
+      span.textContent = text;
+      meta.appendChild(span);
+    });
+
+    card.appendChild(top);
+    card.appendChild(desc);
+    card.appendChild(meta);
+    return card;
+  }
+
   /* Fallback markup lives in <noscript>; with JS on we replace it. */
   if (grid && !reduce) {
     var cached = null;
@@ -343,26 +450,10 @@
       var list = repos.filter(isPortfolioRepo);
       if (!list.length) { showEmpty(); return; }
 
-      var html = "";
-      list.forEach(function (repo) {
-        var updated = repo.updated_at
-          ? new Date(repo.updated_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
-          : "";
-
-        html += '<article class="repo reveal is-in">'
-          + '<div class="repo-top">'
-          + '<a class="repo-name" href="' + repo.html_url + '" target="_blank" rel="noopener">' + repo.name + "</a>"
-          + "</div>"
-          + '<p class="repo-desc">' + (repo.description || "Проект без описания.") + "</p>"
-          + '<div class="repo-meta">'
-          + "<span>★ " + repo.stargazers_count + "</span>"
-          + "<span>" + (repo.language || "—") + "</span>"
-          + "<span>обновлён " + updated + "</span>"
-          + "</div>"
-          + "</article>";
-      });
-
-      grid.innerHTML = html;
+      var fragment = d.createDocumentFragment();
+      list.forEach(function (repo) { fragment.appendChild(repoCard(repo)); });
+      grid.textContent = "";
+      grid.appendChild(fragment);
     };
 
     if (cached && Date.now() - cached.at < CACHE_TTL) {

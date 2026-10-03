@@ -368,7 +368,10 @@ ul, ol { list-style: none; padding: 0; }
 
 /* Scroll-spy state, toggled by site.js */
 .nav a.is-active { color: var(--text); }
-.nav a.is-active::after {
+
+/* The underline is always painted but transparent, so switching sections
+   fades it in/out instead of popping from nothing. */
+.nav a::after {
   content: "";
   position: absolute;
   left: 14px;
@@ -377,7 +380,10 @@ ul, ol { list-style: none; padding: 0; }
   height: 2px;
   border-radius: 2px;
   background: var(--grad);
+  opacity: 0;
+  transition: opacity var(--t);
 }
+.nav a.is-active::after { opacity: 1; }
 
 .header-actions {
   display: flex;
