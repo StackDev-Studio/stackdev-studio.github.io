@@ -10,8 +10,7 @@
 
 /* ---------------------------------------------------------------- 1. Tokens */
 :root {
-  /* Surfaces: a deep graphite stack. Each step is a real elevation, so panels
-     read as layers rather than as flat rectangles painted a different grey. */
+  /* Surfaces */
   --bg: #07080d;
   --bg-elev: #0b0d15;
   --panel: #0f111b;
@@ -31,12 +30,7 @@
   --magenta: #c65cff;
   --accent: var(--violet);
   --grad: linear-gradient(100deg, var(--cyan) 0%, var(--violet) 48%, var(--magenta) 100%);
-  /* Fill for pill shapes (buttons, chips). Strictly horizontal (90deg): the
-     vertical rim of a fully rounded capsule then stays one colour from top
-     to bottom -- an angled fill changes hue along the rim and reads as a
-     band against the dark page. The saturated endpoints start 12% inside the
-     caps: violet at the very rim eases into cyan/magenta over a wide zone,
-     which removes the colour bands without making the button a rainbow. */
+  /* Horizontal fill keeps a pill's rim one colour top-to-bottom. */
   --grad-fill: linear-gradient(90deg,
       var(--violet) 0%,
       var(--cyan) 12%,
@@ -56,7 +50,7 @@
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --t: .28s var(--ease);
 
-  /* Fonts: self-hosted, see fonts.css */
+  /* Fonts: self-hosted (fonts.css) */
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
@@ -103,8 +97,7 @@ body {
   padding: clamp(72px, 9vw, 128px) 0;
 }
 
-/* Alternate sections sit on a raised surface with a hairline seam, which
-   separates long pages without resorting to colour changes. */
+/* Raised surface with a hairline seam. */
 .section-alt {
   background: var(--bg-elev);
   border-block: 1px solid var(--line-soft);
@@ -178,9 +171,7 @@ body {
   color: #fff;
   box-shadow: 0 10px 30px -12px rgba(124, 107, 255, .8);
 }
-/* Hover brightens in place. The previous background-position shift exposed
-   the gradient ends at the pill caps, which rendered as colour bands along
-   the left/right edges -- brightness keeps the fill identical in-place. */
+/* Brighten in place; shifting the gradient exposes bands at the pill caps. */
 .btn-primary:hover {
   filter: brightness(1.08);
   box-shadow: 0 16px 40px -14px rgba(160, 100, 255, .9);
@@ -200,8 +191,7 @@ body {
 .btn-lg { padding: 16px 30px; font-size: 16px; }
 .btn-block { width: 100%; }
 
-/* Cards: a hairline border plus a top inner highlight -- the highlight is what
-   makes an edge look "lit" rather than like a 1px drawn line. */
+/* Hairline border + top inner highlight ("lit" edge). */
 .card {
   position: relative;
   background: linear-gradient(180deg, var(--panel) 0%, #0c0e17 100%);
@@ -312,8 +302,7 @@ ul, ol { list-style: none; padding: 0; }
   border-bottom: 1px solid transparent;
 }
 
-/* The bar only materialises once the hero has scrolled away, so the first
-   impression stays clean instead of opening with a blurred slab. */
+/* Bar materialises only after the hero scrolls away. */
 .site-header.is-stuck {
   background: rgba(8, 9, 15, .78);
   backdrop-filter: blur(18px) saturate(160%);
@@ -343,10 +332,8 @@ ul, ol { list-style: none; padding: 0; }
 }
 .brand-text span { color: var(--muted); font-weight: 500; }
 
-/* The actions cluster carries the auto margin, so the burger / phone / CTA
-   stay pinned to the right edge at every width regardless of where the nav
-   sits in the markup. Putting the auto margin on the nav instead made the
-   header contents drift toward the logo at tablet widths. */
+/* .header-actions carries the auto margin so right-side items stay pinned
+   regardless of where the nav sits in the markup. */
 .nav {
   display: flex;
   align-items: center;
@@ -369,8 +356,7 @@ ul, ol { list-style: none; padding: 0; }
 /* Scroll-spy state, toggled by site.js */
 .nav a.is-active { color: var(--text); }
 
-/* The underline is always painted but transparent, so switching sections
-   fades it in/out instead of popping from nothing. */
+/* Underline is always painted, just transparent: sections fade in/out. */
 .nav a::after {
   content: "";
   position: absolute;
@@ -391,16 +377,78 @@ ul, ol { list-style: none; padding: 0; }
   gap: 20px;
 }
 
-.header-phone {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-2);
-  transition: color var(--t);
-  white-space: nowrap;
-}
-.header-phone:hover { color: var(--text); }
+/* Header contact menu: channels at a glance, no bare phone number. */
+.contact { position: relative; }
 
-/* Mobile-only CTA lives in the drawer; hidden on desktop alongside the burger. */
+.contact-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, .03);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+  transition: border-color var(--t), background var(--t);
+}
+.contact-toggle::-webkit-details-marker { display: none; }
+.contact-toggle:hover { border-color: rgba(124, 107, 255, .5); background: rgba(124, 107, 255, .08); }
+.contact-icon { color: var(--cyan); }
+.contact-caret { color: var(--muted); transition: transform var(--t); }
+
+.contact[open] .contact-toggle { border-color: rgba(124, 107, 255, .55); background: rgba(124, 107, 255, .1); }
+.contact[open] .contact-caret { transform: rotate(180deg); }
+
+.contact-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 320px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: rgba(13, 15, 24, .98);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+
+.contact-lead { margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  transition: background var(--t);
+}
+.contact-row:hover { background: rgba(255, 255, 255, .05); }
+
+.contact-row-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--grad-soft);
+  color: var(--cyan);
+}
+
+.contact-row-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.contact-row-text b { font-size: 14.5px; font-weight: 600; overflow-wrap: anywhere; }
+.contact-row-text em { font-size: 12.5px; font-style: normal; color: var(--muted); }
+
+/* Mobile-only CTA (drawer); hidden on desktop. */
 .nav-cta { display: none; }
 
 .burger {
@@ -415,8 +463,7 @@ ul, ol { list-style: none; padding: 0; }
   place-items: center;
   gap: 5px;
 }
-/* Whole-pixel height: a 1.5px line is antialiased differently at odd device
-   pixel ratios, which made the top bar look thinner than the bottom one. */
+/* Whole-pixel height: 1.5px anti-aliases unevenly across device pixel ratios. */
 .burger span {
   display: block;
   width: 17px;
@@ -442,8 +489,7 @@ ul, ol { list-style: none; padding: 0; }
   z-index: 0;
 }
 
-/* A faint technical grid fades out radially -- it reads as a blueprint without
-   competing with the type. */
+/* Faint radial-faded grid. */
 .hero-grid {
   position: absolute;
   inset: 0;
@@ -501,11 +547,8 @@ ul, ol { list-style: none; padding: 0; }
   overflow: hidden;
 }
 
-/* The glow lives fully inside the parent (no negative insets): oversized
-   absolutely-positioned children clipped by overflow:hidden force huge
-   compositor layers that some GPUs rasterise partially -- the card background
-   then renders only in its top strip. The radial gradient itself fades the
-   glow out before the edges, so the visual is identical. */
+/* Glow stays inside the parent: oversized clipped children force huge
+   compositor layers that some GPUs rasterise partially. */
 .mock-glow {
   position: absolute;
   inset: 0;
@@ -941,7 +984,7 @@ ul, ol { list-style: none; padding: 0; }
 .faq-item summary::-webkit-details-marker { display: none; }
 .faq-item summary:hover { color: var(--violet); }
 
-/* Plus/cross drawn from two pseudo-elements -- no icon font, no extra markup. */
+/* Plus/cross from two pseudo-elements. */
 .faq-marker {
   position: relative;
   flex-shrink: 0;
@@ -1034,6 +1077,36 @@ ul, ol { list-style: none; padding: 0; }
   border: 1px solid rgba(124, 107, 255, .6);
 }
 
+/* Direct channels shown in the CTA, not only in the footer. */
+.cta-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line-soft);
+}
+.cta-contacts a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: rgba(255, 255, 255, .02);
+  color: var(--text-2);
+  transition: border-color var(--t), color var(--t), background var(--t);
+}
+.cta-contacts a:hover {
+  border-color: rgba(124, 107, 255, .5);
+  background: rgba(124, 107, 255, .08);
+  color: var(--text);
+}
+.cta-contacts svg { flex-shrink: 0; color: var(--cyan); }
+.cta-contacts span { display: flex; flex-direction: column; line-height: 1.3; }
+.cta-contacts b { font-size: 14.5px; font-weight: 600; }
+.cta-contacts em { font-size: 12px; font-style: normal; color: var(--muted); }
+
 .cta-form { display: flex; flex-direction: column; gap: 16px; }
 
 .form-row {
@@ -1110,7 +1183,7 @@ ul, ol { list-style: none; padding: 0; }
 
 .form-hint { font-size: 12.5px; color: var(--muted-2); line-height: 1.55; }
 
-/* Inline field validation notes, populated by site.js */
+/* Inline validation notes (site.js) */
 .field-error {
   font-size: 12.5px;
   line-height: 1.45;
@@ -1200,8 +1273,7 @@ ul, ol { list-style: none; padding: 0; }
 
 /* ============================================ 10. MOTION + RESPONSIVE === */
 
-/* Scroll reveal. Content is visible by default and only hidden when JS is
-   confirmed available, so a failed script can never leave a blank page. */
+/* Reveal: visible by default, hidden only when JS is confirmed. */
 .js .reveal {
   opacity: 0;
   transform: translateY(22px);
@@ -1210,10 +1282,8 @@ ul, ol { list-style: none; padding: 0; }
 }
 .js .reveal.is-in { opacity: 1; transform: none; }
 
-/* will-change is applied only while the element animates in and dropped
-   afterwards: a permanently promoted layer gets its gradient backgrounds
-   clipped by the compositor mid-scroll on some GPUs (black bands across
-   cards). */
+/* will-change only while animating; a permanent layer clips gradients
+   mid-scroll on some GPUs. */
 .js .reveal:not(.is-in) { will-change: opacity, transform; }
 .js .reveal.is-in { will-change: auto; }
 
@@ -1250,14 +1320,27 @@ ul, ol { list-style: none; padding: 0; }
 }
 
 @media (max-width: 860px) {
-  .header-phone { display: none; }
+  /* Icon-only trigger so contacts stay reachable next to the burger. */
+  .header-actions { margin-left: auto; }
+  .contact-toggle { padding: 10px; gap: 0; }
+  .contact-toggle > span { display: none; }
+  .contact-caret { display: none; }
+  /* Anchor to the viewport: the icon sits far right, so a right-aligned
+     panel would overflow the opposite edge. */
+  .contact-panel {
+    position: fixed;
+    top: calc(var(--header-h) + 8px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
 
   .burger {
     display: grid;
     order: 3;
   }
 
-  /* Mobile drawer: full-width panel under the bar, not a cramped popover. */
+  /* Mobile drawer: full-width panel under the bar. */
   .nav {
     position: fixed;
     inset: var(--header-h) 0 auto;
@@ -1288,10 +1371,7 @@ ul, ol { list-style: none; padding: 0; }
   }
   .nav a.is-active::after { display: none; }
 
-  /* Primary action lives at the end of the drawer: the desktop header button
-     is hidden at this breakpoint, so the drawer carries its own. Outside the
-     drawer (desktop) .nav-cta is display:none, so it never duplicates the
-     header button. */
+  /* Primary action lives at the end of the drawer. */
   .nav .nav-cta { display: none; }
 
   .nav.is-open .nav-cta {

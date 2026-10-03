@@ -102,16 +102,24 @@
     else if (wide.addListener) wide.addListener(onBreakpoint);
   }
 
-  /* ------------------------------------------------------- scroll-spy */
-  /* Deterministic scroll-spy. On every animation frame we answer one
-     question: "which section currently sits under the sticky header?" and
-     highlight the last one whose top has already crossed that line.
+  /* -------------------------------------------------- header contact */
+  var contact = d.getElementById("contact-menu");
+  if (contact) {
+    d.addEventListener("click", function (e) {
+      if (contact.open && !e.target.closest("#contact-menu")) contact.open = false;
+    });
+    d.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && contact.open) {
+        contact.open = false;
+        var t = contact.querySelector("summary");
+        if (t) t.focus();
+      }
+    });
+  }
 
-     Why not IntersectionObserver: the observer fires asynchronously and in
-     batches, so the underline trailing the viewport felt laggy, and a
-     narrow rootMargin band made it snap late. Reading layout geometry each
-     frame is immediate, cheap and never picks the wrong section when two of
-     them touch. */
+  /* ------------------------------------------------------- scroll-spy */
+  /* Highlight the last section whose top crossed the header line. Geometry
+     is read each frame, so it never lags or mispicks where sections touch. */
   var navLinks = Array.prototype.slice.call(d.querySelectorAll(".nav a[href^='#']"));
   var spySections = [];
 
@@ -122,11 +130,8 @@
 
   if (navLinks.length && spySections.length) {
     var activeHash = "";
-    /* While a smooth-scroll from a nav click is in flight the spy is muted,
-       otherwise it would fight the animation frame by frame. Rather than
-       guessing the animation's duration we keep the clicked item pinned until
-       scrolling actually stops -- a fixed timeout either gives up too early
-       on a long jump or freezes the highlight on a short one. */
+    /* Keep the clicked item pinned until scrolling stops, instead of
+       guessing the smooth-scroll duration. */
     var clickLock = false;
     var settleTimer = 0;
     var unlockWhenIdle = function () {
@@ -145,7 +150,6 @@
       navLinks.forEach(function (link) {
         var on = link.getAttribute("href") === hash;
         link.classList.toggle("is-active", on);
-        /* Screen readers get the same signal the underline gives the eye. */
         if (on) link.setAttribute("aria-current", "location");
         else link.removeAttribute("aria-current");
       });
@@ -153,8 +157,7 @@
 
     var activationLine = function () {
       var h = header ? header.offsetHeight : 0;
-      /* A touch below the sticky header: the highlight flips exactly as a
-         section slides under the bar instead of mid-heading. */
+      /* Flip just below the sticky header, not mid-heading. */
       return h + Math.min(window.innerHeight * 0.08, 72);
     };
 
@@ -163,8 +166,7 @@
       var y = window.pageYOffset || d.documentElement.scrollTop;
       var max = d.documentElement.scrollHeight - window.innerHeight;
 
-      /* Pinned to the very bottom: highlight the final section so the lead
-         section never loses its underline on short viewports. */
+      /* At the very bottom keep the last section highlighted. */
       if (max > 0 && y >= max - 2) {
         setActive(spySections[spySections.length - 1].id);
         return;
@@ -181,8 +183,7 @@
 
     var spyTicking = false;
     var requestSpy = function () {
-      /* A click-driven flight keeps its own target highlighted; only watch
-         for the moment the page goes idle so the spy can take over again. */
+      /* While a click-flight runs, just wait for the page to go idle. */
       if (clickLock) { unlockWhenIdle(); return; }
       if (spyTicking) return;
       spyTicking = true;
@@ -196,7 +197,6 @@
     navLinks.forEach(function (link) {
       link.addEventListener("click", function () {
         var id = link.getAttribute("href").slice(1);
-        /* Highlight immediately and hold it through the flight. */
         setActive(id);
         if (reduce) return;
         clickLock = true;
@@ -208,8 +208,7 @@
     window.addEventListener("resize", requestSpy, { passive: true });
     window.addEventListener("hashchange", requestSpy);
 
-    /* Web fonts and the async GitHub grid shift section offsets after first
-       paint, so re-sync once they settle. */
+    /* Fonts and the async grid shift offsets — re-sync once they settle. */
     if (d.fonts && d.fonts.ready && typeof d.fonts.ready.then === "function") {
       d.fonts.ready.then(computeActive);
     }
@@ -254,9 +253,7 @@
     });
   }
 
-  /* Contact can be a phone (+7..., digits, spaces, dashes, brackets) or a
-     Telegram handle (@name or t.me/name). Anything else is rejected before
-     the brief is composed. */
+  /* Contact is a phone or a Telegram handle. */
   var PHONE_RE = /^\+?[\d\s\-()]{10,18}$/;
   var TG_RE = /^(@[a-zA-Z0-9_]{4,32}|https?:\/\/t\.me\/[a-zA-Z0-9_]{4,32}|t\.me\/[a-zA-Z0-9_]{4,32})$/;
 
@@ -370,10 +367,8 @@
   }
 
   /* ---------------------------------------------------- GitHub projects */
-  /* Pulls ONLY the studio org (StackDev-Studio) and caches it in
-     sessionStorage, so the section degrades gracefully offline. The site's
-     own repo and forks are filtered out: they are infrastructure, not
-     portfolio pieces. */
+  /* Studio org repos only, cached in sessionStorage (degrades offline).
+     Forks and the site repo itself are filtered out. */
   var ORG = "StackDev-Studio";
   var SITE_REPO = "stackdev-studio.github.io";
   var CACHE_KEY = "sd_gh_repos_v2";
@@ -395,10 +390,7 @@
     return !repo.fork && repo.name !== SITE_REPO;
   }
 
-  /* Card markup is built with the DOM API instead of innerHTML on purpose:
-     repo names and descriptions come from the GitHub API, so a stray "<" or
-     "&" must render as text -- never as markup or a layout-breaking entity.
-     textContent handles that for free and also removes any XSS vector. */
+  /* Built via DOM + textContent: API strings must render as text, not markup. */
   function repoCard(repo) {
     var updated = repo.updated_at
       ? new Date(repo.updated_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
@@ -440,7 +432,6 @@
     return card;
   }
 
-  /* Fallback markup lives in <noscript>; with JS on we replace it. */
   if (grid && !reduce) {
     var cached = null;
     try { cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null"); } catch (e) { /* private mode */ }
