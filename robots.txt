@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://stack-dev.ru/sitemap.xml
