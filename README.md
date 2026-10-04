@@ -13,12 +13,5 @@
 
 ## Бренд-иконки
 
-Источник иконок — `icon.png` (512×512). Всё остальное выводится из него:
-
-```
-python3 tools/make_icons.py   # favicon-16/32/96, apple-touch-icon, icon-192/512, assets/img/logo.png
-python3 tools/fetch_fonts.py  # обновить шрифты + assets/css/fonts.css
-python3 tools/make_og.py      # og-image.png / og-image.jpg
-```
-
-Требования: Python 3 + Pillow.
+вектор `assets/brand/logo.svg` (512×512, viewBox `0 0 512 512`).
+Из него рендерится растровый мастер `icon.png` (512×512), а из него — всё остальное.
