@@ -515,10 +515,12 @@
           if (!data || data.success !== true) {
             throw new Error((data && (data.message || data.error)) || "rejected");
           }
-          setBusy(false);
           form.reset();
-          setStatus("Заявка отправлена. Отвечу по указанному контакту в течение пары часов.", "success");
-          if (submitBtn) submitBtn.focus({ preventScroll: true });
+          setStatus("Заявка отправлена. Открываю подтверждение…", "success");
+          /* Hand the visitor the confirmation page, the same one a no-JS
+             submit lands on. */
+          var next = form.getAttribute("data-thanks") || "thanks.html";
+          window.location.assign(next);
         })
         .catch(function (err) {
           setBusy(false);
