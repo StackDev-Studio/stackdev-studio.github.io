@@ -1199,6 +1199,15 @@ ul, ol { list-style: none; padding: 0; }
 
 .form-hint { font-size: 12.5px; color: var(--muted-2); line-height: 1.55; }
 
+/* Live field hint: reflects the contact type detected while typing. */
+.field-note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted-2);
+  transition: color var(--t);
+}
+.field-note.is-detected { color: var(--cyan); }
+
 .consent {
   display: flex;
   align-items: flex-start;

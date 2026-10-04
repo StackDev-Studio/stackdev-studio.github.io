@@ -237,19 +237,115 @@
   var status = d.getElementById("form-status");
   var submitBtn = d.getElementById("lead-submit");
   var submitLabel = submitBtn ? submitBtn.querySelector(".btn-label") : null;
+  var contactNote = d.getElementById("contact-note");
 
-  /* Contact is a phone, a Telegram handle or an e-mail address. */
+  /* Contact is a phone, a Telegram handle or an e-mail address. The field
+     adapts to whichever one the visitor starts typing: it formats the value,
+     switches the keyboard hint and the placeholder, and validates by type. */
   var PHONE_RE = /^\+?[\d\s\-()]{10,18}$/;
   var TG_RE = /^(@[a-zA-Z0-9_]{4,32}|https?:\/\/t\.me\/[a-zA-Z0-9_]{4,32}|t\.me\/[a-zA-Z0-9_]{4,32})$/;
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Zа-яА-Я]{2,}$/;
 
-  function contactError(contact) {
-    if (PHONE_RE.test(contact) || TG_RE.test(contact) || EMAIL_RE.test(contact)) return "";
-    if (/^\+?\d+$/.test(contact.replace(/[\s\-()]/g, ""))) {
-      return "Телефон выглядит неполным — нужен формат +7 900 000-00-00.";
+  /* Only digits, spaces and phone punctuation count as a phone -- letters
+     must not be swallowed while an e-mail is being typed. */
+  var PHONE_ONLY_RE = /^\+?[\d\s\-()]+$/;
+
+  /* Shape of the value, used to pick formatting and hints while typing. */
+  function contactKind(value) {
+    var v = String(value || "").trim();
+    if (!v) return "";
+    if (v.charAt(0) === "@") return "telegram";
+    if (/^(https?:\/\/)?(t\.me|telegram\.me)\//i.test(v)) return "telegram";
+    if (v.indexOf("@") !== -1) return "email";
+    if (PHONE_ONLY_RE.test(v)) return "phone";
+    return "text";
+  }
+
+  /* Digits only, capped at E.164's 15 digits. */
+  function phoneDigits(value) {
+    return String(value || "").replace(/\D/g, "").slice(0, 15);
+  }
+
+  /* +7 (900) 000-00-00 for Russian numbers, +NN … grouped for the rest. */
+  function formatPhone(value) {
+    var digits = phoneDigits(value);
+    if (!digits) return "";
+    var plus = String(value).trim().charAt(0) === "+";
+
+    /* Russian numbers arrive as +7…, 8…, or a bare 10-digit 9xx… number. */
+    var ru = digits.charAt(0) === "7" || digits.charAt(0) === "8" ||
+             (digits.length === 10 && digits.charAt(0) === "9");
+    if (ru) {
+      var rest = (digits.charAt(0) === "7" || digits.charAt(0) === "8") ? digits.slice(1) : digits;
+      var out = "+7";
+      if (rest.length) out += " (" + rest.slice(0, 3);
+      if (rest.length > 3) out += ") " + rest.slice(3, 6);
+      if (rest.length > 6) out += "-" + rest.slice(6, 8);
+      if (rest.length > 8) out += "-" + rest.slice(8, 10);
+      /* Never end on a punctuation character: Backspace then always removes a
+         digit instead of a bracket the formatter would immediately restore. */
+      return out.replace(/[^\d]+$/, "");
     }
-    if (contact.indexOf("@") !== -1) {
-      return "Проверьте e-mail: похоже, в адресе опечатка.";
+
+    /* Non-Russian numbers: the country-code split is unknown, so leave the
+       digits untouched instead of inventing a misleading grouping. */
+    return (plus ? "+" : "") + digits;
+  }
+
+  var CONTACT_HINTS = {
+    phone: { placeholder: "+7 900 000-00-00", note: "Формат телефона" },
+    telegram: { placeholder: "@username", note: "Логин Telegram" },
+    email: { placeholder: "you@example.ru", note: "Адрес e-mail" }
+  };
+
+  /* Reformat while keeping the caret on the same digit, so editing anywhere
+     in the number stays predictable and the value never turns malformed. */
+  function applyContactFormat(input) {
+    var kind = contactKind(input.value);
+    var formatted = kind === "phone" ? formatPhone(input.value) : input.value;
+
+    if (kind === "phone" && formatted !== input.value) {
+      var digitsBefore = phoneDigits(String(input.value).slice(0, input.selectionStart)).length;
+      input.value = formatted;
+      var pos = 0;
+      var seen = 0;
+      while (pos < formatted.length && seen < digitsBefore) {
+        if (/\d/.test(formatted.charAt(pos))) seen++;
+        pos++;
+      }
+      input.setSelectionRange(pos, pos);
+    }
+
+    var hint = CONTACT_HINTS[kind];
+    var filled = input.value.length > 0;
+
+    input.setAttribute("placeholder", hint ? hint.placeholder : CONTACT_HINTS.phone.placeholder);
+    if (filled) input.setAttribute("inputmode", kind === "phone" ? "tel" : kind === "email" ? "email" : "text");
+    else input.removeAttribute("inputmode");
+
+    if (contactNote) {
+      contactNote.textContent = hint ? hint.note : "Начните вводить — подскажу формат";
+      contactNote.classList.toggle("is-detected", !!hint);
+    }
+
+    if (filled) input.dataset.kind = kind;
+    else delete input.dataset.kind;
+  }
+
+  function contactError(contact) {
+    var value = String(contact || "").trim();
+    if (!value) return "";
+    var kind = contactKind(value);
+    if (kind === "telegram") {
+      return TG_RE.test(value) ? "" : "Telegram-логин пишется как @username (4+ символа).";
+    }
+    if (kind === "phone") {
+      var digits = phoneDigits(value);
+      if (digits.length < 10) return "Телефон выглядит неполным — нужен формат +7 900 000-00-00.";
+      return PHONE_RE.test(formatPhone(value)) ? "" : "Проверьте номер телефона.";
+    }
+    if (kind === "email") {
+      return EMAIL_RE.test(value) ? "" : "Проверьте e-mail: похоже, в адресе опечатка.";
     }
     return "Укажите телефон +7..., Telegram @username или e-mail.";
   }
@@ -358,14 +454,19 @@
     /* Validate on blur so mistakes surface early, not only on submit. */
     var contactInput = form.elements["fi-text-contact"];
     if (contactInput) {
+      contactInput.addEventListener("input", function () {
+        applyContactFormat(contactInput);
+        if (contactInput.getAttribute("aria-invalid") === "true") {
+          setFieldError(contactInput, contactError(contactInput.value.trim()));
+        }
+      });
       contactInput.addEventListener("blur", function () {
         var v = contactInput.value.trim();
         if (v) setFieldError(contactInput, contactError(v));
       });
-      contactInput.addEventListener("input", function () {
-        if (contactInput.getAttribute("aria-invalid") === "true") {
-          setFieldError(contactInput, contactError(contactInput.value.trim()));
-        }
+      contactInput.addEventListener("paste", function () {
+        /* Format the pasted value once the browser has inserted it. */
+        window.setTimeout(function () { applyContactFormat(contactInput); }, 0);
       });
     }
 
