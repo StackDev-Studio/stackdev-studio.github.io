@@ -5,7 +5,8 @@
    keeps working from a plain GitHub Pages checkout.
 
    Every feature below is progressive enhancement: with JS disabled the page
-   still renders, every link still works and every FAQ still opens.
+   still renders, every link still works and the lead form posts straight to
+   the studio inbox instead of being handed off to a script.
    ========================================================================== */
 (function () {
   "use strict";
@@ -47,8 +48,11 @@
     if (header) header.classList.toggle("is-stuck", y > 24);
     if (progress) progress.style.width = (max > 0 ? (y / max) * 100 : 0) + "%";
     if (toTop) {
-      toTop.hidden = false;
-      toTop.classList.toggle("is-visible", y > 700);
+      var show = y > 700;
+      toTop.classList.toggle("is-visible", show);
+      /* Keep the hidden attribute in sync: it also carries display:none,
+         so a stale value would either trap clicks or hide the button. */
+      toTop.hidden = !show;
     }
     ticking = false;
   }
@@ -70,6 +74,7 @@
   /* -------------------------------------------------------- mobile menu */
   var burger = d.querySelector(".burger");
   var nav = d.getElementById("nav");
+  var FOCUSABLE = "a[href], button:not([disabled]), input, textarea, select, [tabindex]";
 
   if (burger && nav) {
     var setMenu = function (open) {
@@ -88,9 +93,24 @@
     });
 
     d.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && burger.getAttribute("aria-expanded") === "true") {
-        setMenu(false);
-        burger.focus();
+      if (e.key !== "Escape" || burger.getAttribute("aria-expanded") !== "true") return;
+      setMenu(false);
+      burger.focus();
+    });
+
+    /* The drawer overlays the page on small screens: keep Tab inside it. */
+    d.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab" || burger.getAttribute("aria-expanded") !== "true") return;
+      var items = nav.querySelectorAll(FOCUSABLE);
+      if (!items.length) return;
+      var first = items[0];
+      var last = items[items.length - 1];
+      if (e.shiftKey && (d.activeElement === first || d.activeElement === burger)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && d.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     });
 
@@ -222,51 +242,36 @@
   if (year) year.textContent = String(new Date().getFullYear());
 
   /* -------------------------------------------------------- lead form */
-  /* There is no backend on a static host. The form composes the brief,
-     copies it to the clipboard and opens the studio's direct chat, so the
-     message always lands at @StackDevStudio -- never wherever the visitor
-     happens to share it. */
+  /* The markup posts straight to FormSubmit (a static-host friendly relay),
+     which forwards the brief to the studio inbox. With JS enabled the same
+     POST is sent over fetch, so the visitor stays on the page and receives
+     inline feedback instead of the relay's own thank-you screen. If fetch
+     is unavailable or the relay is unreachable, the browser falls back to a
+     plain form submit -- the visitor never loses the lead. */
   var form = d.getElementById("lead-form");
-  var hint = d.getElementById("form-hint");
-  var TG_CHAT = "https://t.me/StackDevStudio";
+  var status = d.getElementById("form-status");
+  var submitBtn = d.getElementById("lead-submit");
+  var submitLabel = submitBtn ? submitBtn.querySelector(".btn-label") : null;
 
-  function writeClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
-    /* Fallback for non-secure contexts / older browsers. */
-    return new Promise(function (resolve, reject) {
-      var ta = d.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      d.body.appendChild(ta);
-      ta.select();
-      try {
-        d.execCommand("copy") ? resolve() : reject(new Error("copy failed"));
-      } catch (err) {
-        reject(err);
-      } finally {
-        d.body.removeChild(ta);
-      }
-    });
-  }
-
-  /* Contact is a phone or a Telegram handle. */
+  /* Contact is a phone, a Telegram handle or an e-mail address. */
   var PHONE_RE = /^\+?[\d\s\-()]{10,18}$/;
   var TG_RE = /^(@[a-zA-Z0-9_]{4,32}|https?:\/\/t\.me\/[a-zA-Z0-9_]{4,32}|t\.me\/[a-zA-Z0-9_]{4,32})$/;
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Zа-яА-Я]{2,}$/;
 
   function contactError(contact) {
-    if (PHONE_RE.test(contact) || TG_RE.test(contact)) return "";
+    if (PHONE_RE.test(contact) || TG_RE.test(contact) || EMAIL_RE.test(contact)) return "";
     if (/^\+?\d+$/.test(contact.replace(/[\s\-()]/g, ""))) {
       return "Телефон выглядит неполным — нужен формат +7 900 000-00-00.";
     }
-    return "Укажите телефон +7... или Telegram @username.";
+    if (contact.indexOf("@") !== -1) {
+      return "Проверьте e-mail: похоже, в адресе опечатка.";
+    }
+    return "Укажите телефон +7..., Telegram @username или e-mail.";
   }
 
   function setFieldError(input, message) {
-    var field = input.closest(".field");
+    if (!input) return;
+    var field = input.closest(".field") || input.closest(".consent");
     if (!field) return;
     var note = field.querySelector(".field-error");
     if (!note) {
@@ -278,6 +283,21 @@
     input.setAttribute("aria-invalid", message ? "true" : "false");
   }
 
+  function setStatus(message, tone) {
+    if (!status) return;
+    status.textContent = message || "";
+    status.className = "form-status" + (tone ? " is-" + tone : "");
+    status.hidden = !message;
+  }
+
+  function setBusy(busy) {
+    if (!submitBtn) return;
+    submitBtn.disabled = busy;
+    submitBtn.classList.toggle("is-busy", busy);
+    if (submitLabel) submitLabel.textContent = busy ? "Отправляю…" : "Отправить заявку";
+    submitBtn.setAttribute("aria-busy", busy ? "true" : "false");
+  }
+
   function clearErrors() {
     Array.prototype.forEach.call(form.querySelectorAll(".field-error"), function (n) {
       n.textContent = "";
@@ -287,7 +307,42 @@
     });
   }
 
+  function validate() {
+    clearErrors();
+    var contactInput = form.elements.contact;
+    var nameInput = form.elements.name;
+    var firstBad = null;
+
+    if (String(nameInput.value).trim().length < 2) {
+      setFieldError(nameInput, "Как к вам обращаться? Минимум 2 символа.");
+      firstBad = nameInput;
+    }
+
+    var contact = String(contactInput.value).trim();
+    if (!contact) {
+      setFieldError(contactInput, "Оставьте телефон, Telegram или e-mail — иначе не ответить.");
+      firstBad = firstBad || contactInput;
+    } else {
+      var cerr = contactError(contact);
+      if (cerr) {
+        setFieldError(contactInput, cerr);
+        firstBad = firstBad || contactInput;
+      }
+    }
+
+    var consent = form.elements.consent;
+    if (consent && !consent.checked) {
+      setFieldError(consent, "Нужно согласие на обработку данных.");
+      firstBad = firstBad || consent;
+    }
+
+    return firstBad;
+  }
+
   if (form) {
+    /* Take over validation: native bubbles become inline notes instead. */
+    form.setAttribute("novalidate", "novalidate");
+
     /* Validate on blur so mistakes surface early, not only on submit. */
     var contactInput = form.elements.contact;
     if (contactInput) {
@@ -303,66 +358,50 @@
     }
 
     form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      clearErrors();
-
-      var data = new FormData(form);
-      var name = String(data.get("name") || "").trim();
-      var contact = String(data.get("contact") || "").trim();
-      var service = String(data.get("service") || "").trim();
-      var message = String(data.get("message") || "").trim();
-
-      var nameInput = form.elements.name;
-      var firstBad = null;
-
-      if (name.length < 2) {
-        setFieldError(nameInput, "Как к вам обращаться? Минимум 2 символа.");
-        firstBad = firstBad || nameInput;
-      }
-
-      if (!contact) {
-        setFieldError(contactInput, "Оставьте телефон или Telegram — иначе не ответить.");
-        firstBad = firstBad || contactInput;
-      } else {
-        var cerr = contactError(contact);
-        if (cerr) {
-          setFieldError(contactInput, cerr);
-          firstBad = firstBad || contactInput;
-        }
-      }
-
+      var firstBad = validate();
       if (firstBad) {
-        if (hint) {
-          hint.textContent = "Проверьте выделенные поля — заявка не отправлена.";
-          hint.style.color = "#f87171";
-        }
+        e.preventDefault();
+        setStatus("Проверьте выделенные поля — заявка не отправлена.", "error");
         firstBad.focus();
         return;
       }
 
-      var text = [
-        "Заявка с сайта " + location.host,
-        "",
-        "Имя: " + name,
-        "Связь: " + contact,
-        "Задача: " + service
-      ];
-      if (message) text.push("Описание: " + message);
+      /* No fetch support: let the browser POST to the relay natively. */
+      if (!window.fetch || !window.FormData) return;
 
-      function done(copied) {
-        if (hint) {
-          hint.textContent = copied
-            ? "Текст заявки скопирован — вставьте его в открывшийся Telegram и отправьте."
-            : "Открылся чат @StackDevStudio — вставьте текст заявки (Ctrl+V) и отправьте.";
-          hint.style.color = "";
-        }
-      }
+      e.preventDefault();
+      setStatus("Отправляю заявку…", "pending");
+      setBusy(true);
 
-      writeClipboard(text.join("\n"))
-        .then(function () { done(true); })
-        .catch(function () { done(false); });
+      /* FormSubmit answers JSON on its /ajax/ endpoint, which keeps the
+         visitor on the page instead of the relay's own "thank you" screen. */
+      var endpoint = form.getAttribute("action").indexOf("/ajax/") === -1
+        ? form.getAttribute("action").replace("formsubmit.co/", "formsubmit.co/ajax/")
+        : form.getAttribute("action");
 
-      window.open(TG_CHAT, "_blank", "noopener");
+      fetch(endpoint, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" }
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json().catch(function () { return {}; });
+        })
+        .then(function (data) {
+          /* success === "false" means the relay rejected it (spam, or the
+             inbox has not been confirmed yet) — fall back rather than lie. */
+          if (data && String(data.success) === "false") throw new Error("relay");
+          setBusy(false);
+          form.reset();
+          setStatus("Заявка отправлена. Отвечу по указанному контакту в течение пары часов.", "success");
+          if (submitBtn) submitBtn.focus({ preventScroll: true });
+        })
+        .catch(function () {
+          setBusy(false);
+          /* Hand the lead back to the native POST rather than dropping it. */
+          form.submit();
+        });
     });
   }
 
@@ -432,12 +471,11 @@
     return card;
   }
 
-  if (grid && !reduce) {
+  if (grid) {
     var cached = null;
     try { cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null"); } catch (e) { /* private mode */ }
 
     var paint = function (repos) {
-      if (!grid) return;
       var list = repos.filter(isPortfolioRepo);
       if (!list.length) { showEmpty(); return; }
 

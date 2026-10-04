@@ -4,8 +4,8 @@
    1. Tokens          6. Services       11. FAQ
    2. Reset + base    7. Process        12. Contact form
    3. Layout + type   8. Comparison     13. Footer
-   4. Primitives      9. Works          14. Utilities + motion
-   5. Header         10. ...            15. Responsive
+   4. Primitives      9. Works          14. Docs pages
+   5. Header         10. CTA extras     15. Motion + responsive
    ========================================================================== */
 
 /* ---------------------------------------------------------------- 1. Tokens */
@@ -102,6 +102,9 @@ body {
   background: var(--bg-elev);
   border-block: 1px solid var(--line-soft);
 }
+
+/* Tighter rhythm for short sections that follow the hero. */
+.section-tight { padding-top: clamp(56px, 6vw, 88px); }
 
 .section-head { max-width: 720px; margin-bottom: clamp(36px, 4.5vw, 60px); }
 
@@ -258,6 +261,9 @@ h1, h2, h3, h4 {
   line-height: 1.1;
   letter-spacing: -.03em;
   text-wrap: balance;
+  /* Long single words (e.g. "конфиденциальности") must not push the layout
+     wider than a 320px viewport. */
+  overflow-wrap: break-word;
 }
 
 p { text-wrap: pretty; }
@@ -784,7 +790,6 @@ ul, ol { list-style: none; padding: 0; }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
-  counter-reset: step;
 }
 
 .step {
@@ -879,8 +884,6 @@ ul, ol { list-style: none; padding: 0; }
 }
 .compare-table tbody th { font-weight: 500; color: var(--text-2); }
 .compare-table td { color: var(--muted); }
-.compare-table .is-us { color: var(--text); font-weight: 600; }
-.compare-table thead .is-us { color: var(--cyan); }
 
 .compare-note {
   margin-top: 16px;
@@ -939,7 +942,6 @@ ul, ol { list-style: none; padding: 0; }
   color: var(--muted-2);
 }
 .repo-meta span { display: inline-flex; align-items: center; gap: 6px; }
-.repo-dot { width: 9px; height: 9px; border-radius: 50%; }
 
 .repo-fallback,
 .repo-error {
@@ -1052,29 +1054,33 @@ ul, ol { list-style: none; padding: 0; }
   max-width: 46ch;
 }
 
-.cta-points {
+/* "What happens next" — three numbered steps, numbered by markup. */
+.cta-next {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 26px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 26px;
 }
-.cta-points li {
-  position: relative;
-  padding-left: 22px;
+.cta-next li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   font-size: 14.5px;
-  font-weight: 500;
   color: var(--text-2);
 }
-.cta-points li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: .55em;
-  width: 13px;
-  height: 13px;
+.cta-next span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(124, 107, 255, .5);
   border-radius: 50%;
   background: var(--grad-soft);
-  border: 1px solid rgba(124, 107, 255, .6);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 /* Direct channels shown in the CTA, not only in the footer. */
@@ -1108,6 +1114,16 @@ ul, ol { list-style: none; padding: 0; }
 .cta-contacts em { font-size: 12px; font-style: normal; color: var(--muted); }
 
 .cta-form { display: flex; flex-direction: column; gap: 16px; }
+
+/* Honeypot: kept in the DOM for bots, invisible and untabbable for people. */
+.hp-field {
+  position: absolute !important;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .form-row {
   display: grid;
@@ -1183,6 +1199,67 @@ ul, ol { list-style: none; padding: 0; }
 
 .form-hint { font-size: 12.5px; color: var(--muted-2); line-height: 1.55; }
 
+/* Consent: the checkbox sits beside its label text. */
+.consent {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* Consent validation note drops to its own line, aligned with the text. */
+.consent .field-error { flex: 1 1 100%; padding-left: 26px; }
+.consent input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--violet);
+  cursor: pointer;
+}
+.consent a {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Submission feedback (site.js) */
+.form-status {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, .02);
+}
+.form-status.is-pending { border-color: var(--line); color: var(--text-2); }
+.form-status.is-success {
+  border-color: rgba(74, 222, 128, .45);
+  background: rgba(74, 222, 128, .08);
+  color: #86efac;
+}
+.form-status.is-error {
+  border-color: rgba(248, 113, 113, .5);
+  background: rgba(248, 113, 113, .08);
+  color: #fca5a5;
+}
+
+/* Busy submit: label swap + spinner, so a slow POST never feels dead. */
+.btn-spinner { display: none; width: 16px; height: 16px; }
+.btn.is-busy { pointer-events: none; }
+.btn.is-busy .btn-spinner {
+  display: block;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+.btn:disabled { opacity: .85; }
+
 /* Inline validation notes (site.js) */
 .field-error {
   font-size: 12.5px;
@@ -1194,6 +1271,96 @@ ul, ol { list-style: none; padding: 0; }
 .field textarea[aria-invalid="true"] {
   border-color: rgba(248, 113, 113, .6);
 }
+.consent input[aria-invalid="true"] { outline: 2px solid rgba(248, 113, 113, .7); outline-offset: 2px; }
+
+/* ============================================ 10b. DOCS PAGES === */
+.doc { padding-top: calc(var(--header-h) + clamp(48px, 6vw, 80px)); }
+.doc-body { margin-top: 32px; }
+.doc-body h2 {
+  margin: 32px 0 10px;
+  font-size: 19px;
+  letter-spacing: -.02em;
+}
+.doc-body h2:first-child { margin-top: 0; }
+.doc-body p { color: var(--text-2); font-size: 15.5px; }
+.doc-body p + p { margin-top: 12px; }
+.doc-body ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.doc-body li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 15px;
+  color: var(--text-2);
+}
+.doc-body li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grad);
+}
+.doc-body a { color: var(--cyan); text-decoration: underline; text-underline-offset: 3px; }
+.doc-body a:hover { color: var(--text); }
+.doc-foot {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 14px;
+  color: var(--muted) !important;
+}
+.doc-center { text-align: center; }
+.doc-center .section-sub { margin-inline: auto; }
+.doc-center .doc-body { text-align: left; }
+.doc-badge {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 22px;
+  border: 1px solid rgba(74, 222, 128, .4);
+  border-radius: 50%;
+  background: rgba(74, 222, 128, .1);
+  color: #4ade80;
+}
+.doc-actions { justify-content: center; margin-top: 32px; }
+.doc-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+  margin: 40px auto 0;
+  text-align: left;
+}
+.doc-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 15px;
+  color: var(--text-2);
+}
+.doc-steps span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(124, 107, 255, .5);
+  border-radius: 50%;
+  background: var(--grad-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+@keyframes spin { to { transform: rotate(1turn); } }
 
 /* ---- Footer ---- */
 .site-footer {
@@ -1266,9 +1433,13 @@ ul, ol { list-style: none; padding: 0; }
   cursor: pointer;
   opacity: 0;
   transform: translateY(12px);
+  pointer-events: none;
   transition: opacity var(--t), transform var(--t), border-color var(--t), background var(--t);
 }
-.to-top.is-visible { opacity: 1; transform: none; }
+.to-top.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+/* The button is toggled through [hidden] as well -- keep it truly out of
+   the way while faded, so it never swallows clicks in the corner. */
+.to-top[hidden] { display: none; }
 .to-top:hover { border-color: rgba(124, 107, 255, .6); background: rgba(124, 107, 255, .12); }
 
 /* ============================================ 10. MOTION + RESPONSIVE === */
@@ -1433,6 +1604,16 @@ ul, ol { list-style: none; padding: 0; }
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
+}
+
+/* Docs headers carry only a logo and one button -- tighten them so the pair
+   still fits a 320px viewport. */
+@media (max-width: 460px) {
+  .site-header.is-compact .header-inner { gap: 12px; }
+  .site-header.is-compact .brand { gap: 8px; }
+  .site-header.is-compact .brand-mark { width: 28px; height: 28px; }
+  .site-header.is-compact .brand-text { font-size: 15px; }
+  .site-header.is-compact .btn-sm { padding: 8px 13px; font-size: 13px; }
 }
 
 .hero-proof {
