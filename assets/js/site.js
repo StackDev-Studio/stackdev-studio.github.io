@@ -1,12 +1,6 @@
 /* ==========================================================================
    StackDev Studio — site behaviour
-   --------------------------------------------------------------------------
-   Vanilla ES5-compatible JS, no build step and no dependencies, so the page
-   keeps working from a plain GitHub Pages checkout.
-
-   Every feature below is progressive enhancement: with JS disabled the page
-   still renders, every link still works and the lead form posts straight to
-   the studio inbox instead of being handed off to a script.
+   Vanilla ES5, no build step, no dependencies.
    ========================================================================== */
 (function () {
   "use strict";
@@ -50,8 +44,6 @@
     if (toTop) {
       var show = y > 700;
       toTop.classList.toggle("is-visible", show);
-      /* Keep the hidden attribute in sync: it also carries display:none,
-         so a stale value would either trap clicks or hide the button. */
       toTop.hidden = !show;
     }
     ticking = false;
@@ -98,7 +90,6 @@
       burger.focus();
     });
 
-    /* The drawer overlays the page on small screens: keep Tab inside it. */
     d.addEventListener("keydown", function (e) {
       if (e.key !== "Tab" || burger.getAttribute("aria-expanded") !== "true") return;
       var items = nav.querySelectorAll(FOCUSABLE);
@@ -114,8 +105,6 @@
       }
     });
 
-    /* Leaving the mobile breakpoint while the drawer is open would otherwise
-       strand body.menu-open and trap scrolling. */
     var wide = window.matchMedia("(min-width: 861px)");
     var onBreakpoint = function (e) { if (e.matches) setMenu(false); };
     if (wide.addEventListener) wide.addEventListener("change", onBreakpoint);
@@ -242,12 +231,8 @@
   if (year) year.textContent = String(new Date().getFullYear());
 
   /* -------------------------------------------------------- lead form */
-  /* The markup posts straight to FormSubmit (a static-host friendly relay),
-     which forwards the brief to the studio inbox. With JS enabled the same
-     POST is sent over fetch, so the visitor stays on the page and receives
-     inline feedback instead of the relay's own thank-you screen. If fetch
-     is unavailable or the relay is unreachable, the browser falls back to a
-     plain form submit -- the visitor never loses the lead. */
+  /* Forminit blocks: fi-sender-* for the submitter, fi-{type}-{name} for the
+     rest. The endpoint replies with JSON, so the page stays put. */
   var form = d.getElementById("lead-form");
   var status = d.getElementById("form-status");
   var submitBtn = d.getElementById("lead-submit");
@@ -309,8 +294,8 @@
 
   function validate() {
     clearErrors();
-    var contactInput = form.elements.contact;
-    var nameInput = form.elements.name;
+    var contactInput = form.elements["fi-text-contact"];
+    var nameInput = form.elements["fi-sender-fullName"];
     var firstBad = null;
 
     if (String(nameInput.value).trim().length < 2) {
@@ -330,7 +315,7 @@
       }
     }
 
-    var consent = form.elements.consent;
+    var consent = form.elements["fi-checkbox-consent"];
     if (consent && !consent.checked) {
       setFieldError(consent, "Нужно согласие на обработку данных.");
       firstBad = firstBad || consent;
@@ -339,12 +324,39 @@
     return firstBad;
   }
 
+  var fallback = d.getElementById("form-fallback");
+  var fallbackLink = d.getElementById("form-fallback-link");
+
+  function fieldValue(name) {
+    var el = form.elements[name];
+    return el ? String(el.value).trim() : "";
+  }
+
+  function showFallback() {
+    if (!fallback) return;
+    if (fallbackLink) {
+      var data = [
+        "Заявка с сайта " + location.host,
+        "",
+        "Имя: " + fieldValue("fi-sender-fullName"),
+        "Связь: " + fieldValue("fi-text-contact"),
+        "Задача: " + fieldValue("fi-radio-service")
+      ];
+      var msg = fieldValue("fi-text-message");
+      if (msg) data.push("Описание: " + msg);
+      fallbackLink.href = "mailto:stackdev.studio@yandex.ru"
+        + "?subject=" + encodeURIComponent("Заявка с сайта stack-dev.ru")
+        + "&body=" + encodeURIComponent(data.join("\n"));
+    }
+    fallback.hidden = false;
+  }
+
   if (form) {
     /* Take over validation: native bubbles become inline notes instead. */
     form.setAttribute("novalidate", "novalidate");
 
     /* Validate on blur so mistakes surface early, not only on submit. */
-    var contactInput = form.elements.contact;
+    var contactInput = form.elements["fi-text-contact"];
     if (contactInput) {
       contactInput.addEventListener("blur", function () {
         var v = contactInput.value.trim();
@@ -366,41 +378,56 @@
         return;
       }
 
-      /* No fetch support: let the browser POST to the relay natively. */
-      if (!window.fetch || !window.FormData) return;
+      var honeypot = form.elements["fi-text-website"];
+      if (honeypot && honeypot.value) {
+        e.preventDefault();
+        setStatus("Заявка отправлена. Отвечу по указанному контакту в течение пары часов.", "success");
+        return;
+      }
+
+      if (!window.fetch || !window.FormData) {
+        e.preventDefault();
+        setStatus("Отправьте заявку письмом — кнопка ниже уже готова.", "error");
+        showFallback();
+        return;
+      }
 
       e.preventDefault();
       setStatus("Отправляю заявку…", "pending");
       setBusy(true);
+      if (fallback) fallback.hidden = true;
 
-      /* FormSubmit answers JSON on its /ajax/ endpoint, which keeps the
-         visitor on the page instead of the relay's own "thank you" screen. */
-      var endpoint = form.getAttribute("action").indexOf("/ajax/") === -1
-        ? form.getAttribute("action").replace("formsubmit.co/", "formsubmit.co/ajax/")
-        : form.getAttribute("action");
+      var body = new FormData(form);
+      body.append("fi-text-page", location.host);
 
-      fetch(endpoint, {
+      fetch(form.getAttribute("action"), {
         method: "POST",
-        body: new FormData(form),
+        body: body,
         headers: { Accept: "application/json" }
       })
         .then(function (res) {
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          return res.json().catch(function () { return {}; });
+          return res.json().catch(function () {
+            throw new Error("HTTP " + res.status);
+          });
         })
         .then(function (data) {
-          /* success === "false" means the relay rejected it (spam, or the
-             inbox has not been confirmed yet) — fall back rather than lie. */
-          if (data && String(data.success) === "false") throw new Error("relay");
+          if (!data || data.success !== true) {
+            throw new Error((data && (data.message || data.error)) || "rejected");
+          }
           setBusy(false);
           form.reset();
           setStatus("Заявка отправлена. Отвечу по указанному контакту в течение пары часов.", "success");
           if (submitBtn) submitBtn.focus({ preventScroll: true });
         })
-        .catch(function () {
+        .catch(function (err) {
           setBusy(false);
-          /* Hand the lead back to the native POST rather than dropping it. */
-          form.submit();
+          var msg = String((err && err.message) || "");
+          if (msg.indexOf("TOO_MANY_REQUESTS") !== -1 || msg.indexOf("5 seconds") !== -1) {
+            setStatus("Слишком часто — подождите пару секунд и нажмите ещё раз.", "error");
+            return;
+          }
+          setStatus("Сервис приёма заявок недоступен — отправьте письмо кнопкой ниже.", "error");
+          showFallback();
         });
     });
   }

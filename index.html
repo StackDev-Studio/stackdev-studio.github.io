@@ -18,7 +18,7 @@
 <meta property="og:url" content="https://stack-dev.ru/">
 <meta property="og:title" content="StackDev Studio — автоматизирую бизнес за 3 дня">
 <meta property="og:description" content="Чат-боты, WebApp, экспресс-сайты и скрипты автоматизации. Срок и цена фиксируются в договоре до старта. ИП на НПД, договор, чек.">
-<meta property="og:image" content="https://stack-dev.ru/og-image.jpg">
+<meta property="og:image" content="https://stack-dev.ru/assets/img/og-image.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -26,15 +26,14 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="StackDev Studio — автоматизирую бизнес за 3 дня">
 <meta name="twitter:description" content="Чат-боты, WebApp, экспресс-сайты и скрипты автоматизации. Запуск от 3 дней.">
-<meta name="twitter:image" content="https://stack-dev.ru/og-image.jpg">
+<meta name="twitter:image" content="https://stack-dev.ru/assets/img/og-image.jpg">
 <meta name="twitter:image:alt" content="StackDev Studio — чат-боты, сайты и автоматизация бизнеса">
 
-<!-- Icons: assets/brand/logo.svg is the master, every PNG below is rendered from it -->
-<link rel="icon" href="favicon-16.png" sizes="16x16" type="image/png">
-<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
-<link rel="icon" href="favicon-96.png" sizes="96x96" type="image/png">
+<!-- Icons: assets/brand/logo.svg is the master, the PNGs are rendered from it -->
+<link rel="icon" href="assets/icons/favicon-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="assets/brand/logo.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="manifest" href="site.webmanifest">
 
 <!-- Self-hosted fonts -->
@@ -54,7 +53,7 @@
       "name": "StackDev Studio",
       "url": "https://stack-dev.ru/",
       "logo": "https://stack-dev.ru/assets/img/logo.png",
-      "image": "https://stack-dev.ru/og-image.jpg",
+      "image": "https://stack-dev.ru/assets/img/og-image.jpg",
       "email": "stackdev.studio@yandex.ru",
       "telephone": "+7-989-635-10-96",
       "priceRange": "от 4 000 ₽",
@@ -137,7 +136,7 @@
 <header class="site-header" id="top">
   <div class="container header-inner">
     <a class="brand" href="#top" aria-label="StackDev Studio — на главную">
-      <img class="brand-mark" src="assets/img/logo.png" width="36" height="36" alt="" aria-hidden="true">
+      <img class="brand-mark" src="assets/brand/logo.svg" width="36" height="36" alt="" aria-hidden="true">
       <span class="brand-text">StackDev <span>Studio</span></span>
     </a>
 
@@ -168,7 +167,7 @@
             <span class="contact-row-icon">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6h18v12H3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m3 7 9 6 9-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            <span class="contact-row-text"><b>stackdev.studio@yandex.ru</b><em>почта для заявок и документов</em></span>
+            <span class="contact-row-text"><b>stackdev.studio@yandex.ru</b><em>почта для писем и документов</em></span>
           </a>
 
           <a class="contact-row" href="tel:+79896351096">
@@ -620,8 +619,8 @@
             </p>
 
             <ol class="cta-next">
-              <li><span>1</span> Вы отправляете заявку — она приходит мне на почту</li>
-              <li><span>2</span> Отвечаю по указанному контакту в течение пары часов</li>
+              <li><span>1</span> Вы отправляете заявку</li>
+              <li><span>2</span> Отвечаю в течение пары часов</li>
               <li><span>3</span> 30 минут брифа — и у вас смета со сроками</li>
             </ol>
 
@@ -648,48 +647,37 @@
             </ul>
           </div>
 
-          <!-- No `novalidate` here: with JS off the browser validates natively.
-               site.js switches it on and takes over validation. -->
           <form class="cta-form" id="lead-form"
-                action="https://formsubmit.co/stackdev.studio@yandex.ru"
+                action="https://api.getform.io/f/om4k5v1gztd"
                 method="POST">
-            <!-- Delivered to the studio inbox. These hint FormSubmit how to format it.
-                 Captcha is off so the AJAX path above stays reliable; spam is
-                 filtered by the honeypot + blacklist below. -->
-            <input type="hidden" name="_subject" value="Заявка с сайта stack-dev.ru">
-            <input type="hidden" name="_template" value="table">
-            <input type="hidden" name="_captcha" value="false">
-            <input type="hidden" name="_next" value="https://stack-dev.ru/thanks.html">
-            <!-- Only obvious spam words: blocking on links would drop honest
-                 briefs where a client pastes a reference URL. -->
-            <input type="hidden" name="_blacklist" value="viagra,казино,casino,кредит наличными,заработок в интернете,forex signals">
-            <!-- Honeypot: invisible to people, irresistible to bots. -->
-            <input class="hp-field" type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <label>
+              <input class="hp-field" type="text" name="fi-text-website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            </label>
 
             <div class="form-row">
               <label class="field">
                 <span>Как вас зовут</span>
-                <input type="text" name="name" placeholder="Иван" autocomplete="name" required>
+                <input type="text" name="fi-sender-fullName" placeholder="Иван" autocomplete="name" required>
               </label>
               <label class="field">
                 <span>Телефон, Telegram или e-mail</span>
-                <input type="text" name="contact" placeholder="+7 900 000-00-00 или @ivan" autocomplete="tel" required>
+                <input type="text" name="fi-text-contact" placeholder="+7 900 000-00-00 или @ivan" autocomplete="tel" required>
               </label>
             </div>
 
             <fieldset class="field field-select">
               <legend>Что нужно сделать</legend>
               <div class="chips">
-                <label class="chip"><input type="radio" name="service" value="Чат-бот / WebApp" checked><span>Чат-бот</span></label>
-                <label class="chip"><input type="radio" name="service" value="Экспресс-сайт"><span>Сайт</span></label>
-                <label class="chip"><input type="radio" name="service" value="Скрипт автоматизации"><span>Скрипт</span></label>
-                <label class="chip"><input type="radio" name="service" value="Техподдержка"><span>Поддержка</span></label>
+                <label class="chip"><input type="radio" name="fi-radio-service" value="Чат-бот / WebApp" checked><span>Чат-бот</span></label>
+                <label class="chip"><input type="radio" name="fi-radio-service" value="Экспресс-сайт"><span>Сайт</span></label>
+                <label class="chip"><input type="radio" name="fi-radio-service" value="Скрипт автоматизации"><span>Скрипт</span></label>
+                <label class="chip"><input type="radio" name="fi-radio-service" value="Техподдержка"><span>Поддержка</span></label>
               </div>
             </fieldset>
 
             <label class="field">
               <span>Коротко о задаче</span>
-              <textarea name="message" rows="3" placeholder="Например: нужен бот для записи клиентов на стрижку с напоминаниями за день"></textarea>
+              <textarea name="fi-text-message" rows="3" placeholder="Например: нужен бот для записи клиентов на стрижку с напоминаниями за день"></textarea>
             </label>
 
             <button class="btn btn-primary btn-lg btn-block" type="submit" id="lead-submit">
@@ -699,14 +687,19 @@
 
             <p class="form-status" id="form-status" role="status" aria-live="polite" hidden></p>
 
+            <p class="form-fallback" id="form-fallback" hidden>
+              Не получилось отправить автоматически.
+              <a id="form-fallback-link" href="mailto:stackdev.studio@yandex.ru">Отправьте письмом</a>
+              — текст заявки уже готов.
+            </p>
+
             <label class="consent">
-              <input type="checkbox" name="consent" value="Да" required>
+              <input type="checkbox" name="fi-checkbox-consent" value="Да" required>
               <span>Согласен на обработку данных для ответа на заявку — подробнее в
                 <a href="privacy.html">политике конфиденциальности</a>.</span>
             </label>
 
             <p class="form-hint">
-              Заявка приходит мне на почту, поэтому вы ничего не дублируете вручную.
               Данные использую только для ответа — рассылок не будет.
             </p>
           </form>
@@ -721,7 +714,7 @@
   <div class="container footer-inner">
     <div class="footer-brand">
       <a class="brand" href="#top" aria-label="StackDev Studio">
-        <img class="brand-mark" src="assets/img/logo.png" width="32" height="32" alt="" aria-hidden="true">
+        <img class="brand-mark" src="assets/brand/logo.svg" width="32" height="32" alt="" aria-hidden="true">
         <span class="brand-text">StackDev <span>Studio</span></span>
       </a>
       <p>Чат-боты, сайты и автоматизация бизнеса. Разработка напрямую, без агентств.</p>
